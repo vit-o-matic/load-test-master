@@ -8,10 +8,8 @@
 /RUNNING_PID
 project/target/
 project/project/
+conf/credentials.conf
 *.log
 *.class
 *.jar
-
-
-
 
