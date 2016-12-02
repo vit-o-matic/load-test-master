@@ -45,13 +45,11 @@ object AgentDetail {
   // keys we are using, must be the same number of keys as attributes below, but we can add other fields later that are
   // not indexed
   val idKey: KeySchemaElement = new KeySchemaElement("id", KeyType.HASH)
-  val addressKey: KeySchemaElement = new KeySchemaElement("address", KeyType.RANGE)
 
   val id: AttributeDefinition = new AttributeDefinition("id", "S")
-  val address: AttributeDefinition = new AttributeDefinition("address", "S")
 
-  val keys: List[KeySchemaElement] = List(this.idKey, this.addressKey)
-  val attributes: List[AttributeDefinition] = List(this.id, this.address)
+  val keys: List[KeySchemaElement] = List(this.idKey)
+  val attributes: List[AttributeDefinition] = List(this.id)
 
   /**
     * Reconstructs an [[AgentDetail]] from an [[Item]] retrieved from DynamoDB.

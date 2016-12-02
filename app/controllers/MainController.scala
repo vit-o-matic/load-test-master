@@ -118,10 +118,11 @@ class MainController @Inject() (
     val json = Json.parse(URLDecoder.decode(encodedData, "UTF-8"))
     val agentDetail: Option[AgentDetail] = agentForm.bind(json).value
     logger.info(s"Agent Detail: ${agentDetail}")
-    //TODO: persist this detail in DB. Dynamo?
 
-    val workerActor = system.actorOf(Props(
-      new CommandActorPublisher(commandBus)))
+    val workerActor = system.actorOf(
+      // TODO is calling .get safe here?
+      Props(new CommandActorPublisher(agentDetail.get, commandBus))
+    )
     val publisher = ActorPublisher[String](workerActor)
     val source = Source.fromPublisher(publisher)
     Flow.fromSinkAndSource(Sink.foreach(println), source)
@@ -154,11 +155,19 @@ class MainController @Inject() (
   }
 
 
-  class CommandActorPublisher(commandBus: CommandEventBus) extends ActorPublisher[String] {
+  /**
+    * Persists `agentDetail` on instantiation.
+    *
+    * @param agentDetail
+    * @param commandBus
+    */
+  class CommandActorPublisher(agentDetail: AgentDetail, commandBus: CommandEventBus) extends ActorPublisher[String] {
 
     val channel = CommandEventBus.DefaultChannel
     commandBus.subscribe(self, channel)
     logger.debug("Chrome extension has subscribed to command pub/sub")
+    // write the agent detail
+    DynamoUtils.persistAgentDetail(AgentDetail.tableName, agentDetail)
 
     def receive = {
       case cmd: CommandMessage =>
@@ -166,6 +175,8 @@ class MainController @Inject() (
         onNext(cmd.json)
       case Cancel =>
         commandBus.unsubscribe(self)
+        // delete from dynamo by id
+        DynamoUtils.removeAgent(AgentDetail.tableName, agentDetail.id)
         logger.debug(s"Un-subscribed actor: $self from CommandEventBus of channel: $channel")
     }
   }

@@ -12,6 +12,9 @@ import util.ConfigUtils
 import scala.collection.JavaConversions._
 
 /**
+  * Utility functions for persisting in DynamoDB. Table names are required as arguments for most functions. This allows
+  * easy testing as we can just provide a different table name during test time.
+  *
   * Created by tomas.mccandless on 12/1/16.
   */
 object DynamoUtils {
@@ -20,7 +23,6 @@ object DynamoUtils {
 
   // provisioned throughput: read capacity and write capacity
   val throughput: ProvisionedThroughput = new ProvisionedThroughput(10L, 10L)
-
 
   val client: AmazonDynamoDB = new AmazonDynamoDBClient(ConfigUtils.awsCredentials)
   val dynamo: DynamoDB = new DynamoDB(this.client)
@@ -71,8 +73,16 @@ object DynamoUtils {
   }
 
 
-  // TODO we don't yet support de-registering an agent
-  def removeAgent(tableName: String, id: String): Unit = ???
+  /**
+    * Deletes the [[AgentDetail]] from `tableName` with the specified id.
+    *
+    * @param tableName
+    * @param id
+    */
+  def removeAgent(tableName: String, id: String): Unit = {
+    this.logger.debug(s"deleting AgentDetail with id $id from table $tableName")
+    this.client.deleteItem(tableName, Map("id" -> new AttributeValue(id)))
+  }
 
 
   /**
