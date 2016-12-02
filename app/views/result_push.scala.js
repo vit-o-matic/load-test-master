@@ -58,7 +58,6 @@ function addBenchmarkResult(msg) {
       sumDev += Math.pow((rttArr[i] - avgRtt), 2) 
     }
     var stdDev = Math.sqrt(sumDev/rttArr.length)
-    $("#result-alert").fadeIn()
     var summary = "Avg = " + avgRtt.toFixed(2) + " ms, Std.Dev. = " + stdDev.toFixed(2) + " ms"
     $("#result-summary").text(summary)
   }

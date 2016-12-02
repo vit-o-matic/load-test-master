@@ -22,7 +22,7 @@
         <li class="active"><a href="#tab-agents" data-mode="agents">Agents</a></li>
         <li><a href="#tab-generator" data-mode="generator">Generator</a></li>
         <li><a href="#tab-detail" data-mode="detail">Result Detail</a></li>
-        <li><a href="#tab-chart" data-mode="chart">Result Chart</a></li>
+        <li><a href="#tab-chart" data-mode="chart">Architecture</a></li>
       </ul>
 
       <div class="tab-content">
@@ -111,10 +111,11 @@
                 <span class="sr-only"></span>
               </div>
             </div>
+            <div id="result-summary" class="alert alert-info" role="alert"></div>
             <table id="result-table" class="table table-hover dataTable" style="width:100%">
               <thead>
                 <tr>
-                  <th>Agent IP</th>
+                  <th>Agent IP2</th>
                   <th>Target URL</th>
                   <th>Success</th>
                   <th>Status</th>
@@ -133,6 +134,19 @@
           </div>
         </div>
         <div id="tab-chart" class="tab-pane fade">
+          <div style="margin: 20px 10px">
+            <div class="panel panel-default">
+              <div class="panel-heading">Resources</div>
+              <div class="panel-body">
+                The Chrome extension can be downloaded
+                <a href="https://s3.amazonaws.com/wdhackathon/files/extension.crx" target="_blank">here</a>
+              </div>
+            </div>
+            <p>
+              <h3>Crowdsourced Load Testing Architecture</h3>
+              <img src="@routes.Assets.versioned("images/architecture.png")" />
+            </p>
+          </div>
         </div>
 
       </div>
