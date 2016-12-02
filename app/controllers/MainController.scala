@@ -35,14 +35,14 @@ class MainController @Inject() (
   import system.dispatcher
 
   val logger = Logger.logger
-  logger.debug("WHAT IS GOING ON")
+
   val configForm = Form(
     mapping(
       "numNodes" -> number,
-      "loopCount" -> number,
       "config" -> mapping(
-        "address" -> text,
-        "port" -> number,
+        "clientId" -> text,
+        "loopCount" -> number,
+        "targetUrl" -> text,
         "method" -> text,
         "headers" -> optional(text), //expecting format: key1=value1,key2=value2
         "body" -> optional(text)
@@ -65,7 +65,12 @@ class MainController @Inject() (
   def test = Action { implicit request =>
     val clientId = request.session.get("clientId").getOrElse("ID")
     logger.info("TEST.." + clientId)
-    resultBus.publish(SingleHitResult(clientId, "tailrec.io", 200, true, 123, 12, "OK"))
+    resultBus.publish(SingleHitResult(clientId, "tailrec.io", 200, true, 123, "OK"))
+    Ok
+  }
+
+  def sqs = Action(BodyParsers.parse.text) { request =>
+    logger.info(s"SQS received: ${request.body}")
     Ok
   }
 
@@ -100,6 +105,7 @@ class MainController @Inject() (
 
     val json = Json.parse(URLDecoder.decode(encodedData, "UTF-8"))
     val agentDetail: Option[AgentDetail] = agentForm.bind(json).value
+    logger.info(s"Agent Detail: ${agentDetail}")
     //TODO: persist this detail in DB. Dynamo?
 
     val workerActor = system.actorOf(Props(
@@ -113,7 +119,7 @@ class MainController @Inject() (
   def startLoadTest = Action.async { implicit request =>
     configForm.bindFromRequest.fold(
       formWithErrors => {
-        Future.successful(BadRequest)
+        Future.successful(BadRequest(formWithErrors.errors.toString))
       },
       loadTest => {
         Future {
@@ -125,7 +131,7 @@ class MainController @Inject() (
             *  4. Refuse all responses coming from agents after the channel is full.
             * Oh man it's complicate. We will skip it for now. Just put everyone in the same channel for now.
             */
-          val json = Json.toJson(loadTest.config) // TODO: use uPickle
+          val json = Json.toJson(loadTest.config)
           commandBus.publish(CommandMessage(json.toString()))
           //TODO: pass HTML template with LoadTest.config.id
           //We will use this id to subscribe WebSocket in order to receive stats data in real-time
@@ -155,7 +161,7 @@ class MainController @Inject() (
   class ResultActorPublisher(clientId: String, resultBus: ResultEventBus) extends ActorPublisher[String] {
 
     import HitResult.Implicits._
-    
+
     resultBus.subscribe(self, clientId)
     logger.info(s"ClientId: ${clientId} has subscribed to result stream pub/sub")
 

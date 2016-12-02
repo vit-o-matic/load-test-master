@@ -11,12 +11,12 @@ GET     /message                    controllers.AsyncController.message
 
 GET     /                                        controllers.MainController.index
 GET     /chart/subscribe/:clientId               controllers.MainController.subscribeChart(clientId: String)
-
+POST    /start                                   controllers.MainController.startLoadTest
 GET     /agent/subscribe/:encodedData            controllers.MainController.subscribeAgent(encodedData: String)
 GET     /assets/javascripts/result-push.js       controllers.MainController.resultPushJs(id: String)
 
 
 POST    /test                                    controllers.MainController.test
-
+POST    /sqs                                     controllers.MainController.sqs
 # Map static resources from the /public folder to the /assets URL path
 GET     /assets/*file                            controllers.Assets.versioned(path="/public", file: Asset)

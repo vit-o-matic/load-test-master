@@ -14,7 +14,7 @@ class ResultEventBus extends EventBus with LookupClassification {
   type Subscriber = ActorRef
 
   // is used for extracting the classifier from the incoming events
-  override protected def classify(event: Event): Classifier = event.id
+  override protected def classify(event: Event): Classifier = event.clientId
 
   // will be invoked for each event for all subscribers which registered themselves
   // for the event’s classifier

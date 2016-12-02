@@ -1,6 +1,5 @@
 package models
 
-import java.util.UUID
 
 import play.api.libs.json.Json
 
@@ -10,7 +9,6 @@ import play.api.libs.json.Json
   */
 case class LoadTest(
   numNodes: Int, // this number cannot exceed the total number of online slaves
-  loopCount: Int,
   // we can add thread numbers per node, but let's keep it simple
   config: LoadTestConfig
 )
@@ -26,9 +24,9 @@ object LoadTest {
 }
 
 case class LoadTestConfig (
-  id: String, //random generated string
-  address: String,
-  port: Int,
+  clientId: String,
+  loopCount: Int,
+  targetUrl: String,
   method: HttpMethod,
   headers: Seq[HttpHeader] = Nil,
   body: Option[String] = None
@@ -44,11 +42,12 @@ object LoadTestConfig {
     }
   }
 
-  def applyForm(address: String, port: Int, method: String, headers: Option[String], body: Option[String]): LoadTestConfig = {
+  def applyForm(clienId: String, loopCount: Int, targetUrl: String, method: String,
+    headers: Option[String], body: Option[String]): LoadTestConfig = {
     LoadTestConfig(
-      UUID.randomUUID().toString,
-      address,
-      port,
+      clienId,
+      loopCount,
+      targetUrl,
       HttpMethod(method),
       headers.map(_.split(",").collect { case HeaderParser(h) => h }.toSeq).getOrElse(Nil),
       body
@@ -57,7 +56,8 @@ object LoadTestConfig {
 
   def unapplyForm(config: LoadTestConfig) = {
     Option(config).map { m =>
-      (m.address, m.port, m.method.name, if(m.headers.isEmpty) None else Some(m.headers.mkString(",")), m.body)
+      val headers = if(m.headers.isEmpty) None else Some(m.headers.mkString(","))
+      (m.clientId, m.loopCount, m.targetUrl, m.method.name, headers, m.body)
     }
   }
 
