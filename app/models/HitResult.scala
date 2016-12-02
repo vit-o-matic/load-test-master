@@ -1,5 +1,7 @@
 package models
 
+import play.api.libs.json.Json
+
 /**
   * @author Hussachai Puripunpinyo
   */
@@ -23,3 +25,9 @@ case class MultipleHitResults (
   results: Seq[SingleHitResult]
 )
 
+object HitResult {
+  object Implicits {
+    implicit val SingleHitResultFormat = Json.format[SingleHitResult]
+    implicit val MultipleHitResultsFormat = Json.format[MultipleHitResults]
+  }
+}
