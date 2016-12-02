@@ -1,0 +1,7 @@
+@(clientId: String)(implicit request: RequestHeader)
+
+@template(clientId) {
+
+  <script type="text/javascript" charset="utf-8" src="@routes.MainController.resultPushJs(clientId)"></script>
+  
+}
