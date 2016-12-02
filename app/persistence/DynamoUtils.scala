@@ -71,8 +71,10 @@ object DynamoUtils {
   }
 
 
-  // TODO we don't yet support de-registering an agent
-  def removeAgent(tableName: String, id: String): Unit = ???
+  def removeAgent(tableName: String, id: String): Unit = {
+    this.logger.debug(s"deleting AgentDetail with id $id from table $tableName")
+    this.client.deleteItem(tableName, Map("id" -> new AttributeValue(id)))
+  }
 
 
   /**

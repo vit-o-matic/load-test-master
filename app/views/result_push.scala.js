@@ -40,7 +40,7 @@ function addBenchmarkResult(msg) {
   var pt = msg.processingTime
   var diff = rtt - pt
   var diffPercent = ((diff/rtt)*100).toFixed(2)
-  var row = [msg.targetUrl, msg.success, msg.statusCode, escapeHTML(responseMessage), rtt]
+  var row = [msg.agentAddress, msg.targetUrl, msg.success, msg.statusCode, rtt, new Date().getTime()]
   resultTable.row.add(row).draw(false)
 
   rttArr.push(rtt)

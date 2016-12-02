@@ -7,6 +7,7 @@ import play.api.libs.json.Json
   */
 case class SingleHitResult (
   clientId: String,
+  agentAddress: String,
   targetUrl: String,
   statusCode: Int,
   success: Boolean,

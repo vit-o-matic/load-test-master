@@ -52,19 +52,19 @@
           </div>
         </div>
         <div id="tab-generator" class="tab-pane fade">
-          <div>
+          <div style="margin: 20px 10px">
             <form id="load-config-form" class="form-horizontal">
               <div class="form-group">
                 <label for="numNodes" class="col-sm-2 control-label">Number of Nodes</label>
                 <div class="col-sm-10">
-                  <input type="text" name="numNodes" class="form-control" value="4" />
+                  <input type="text" name="numNodes" class="form-control" value="@{registeredAgents.size}" />
                 </div>
               </div>
               <input type="hidden" name="config.clientId" value="@{clientId}" />
               <div class="form-group">
                 <label for="config.loopCount" class="col-sm-2 control-label">Loop Count</label>
                 <div class="col-sm-10">
-                  <input type="text" name="config.loopCount" class="form-control" value="1" />
+                  <input type="text" id="loopCount" name="config.loopCount" class="form-control" value="1" />
                 </div>
               </div>
               <div class="form-group">
@@ -85,7 +85,7 @@
               <div class="form-group">
                 <label for="config.headers" class="col-sm-2 control-label">HTTP Headers</label>
                 <div class="col-sm-10">
-                  <input type="text" name="config.headers" class="form-control" />
+                  <input type="text" name="config.headers" class="form-control" placeholder="key1=value1,key2=value2"/>
                 </div>
               </div>
               <div class="form-group">
@@ -114,11 +114,12 @@
             <table id="result-table" class="table table-hover dataTable" style="width:100%">
               <thead>
                 <tr>
+                  <th>Agent IP</th>
                   <th>Target URL</th>
                   <th>Success</th>
                   <th>Status</th>
-                  <th>Message</th>
                   <th>RTT (ms)</th>
+                  <th>Timestamp</th>
                 </tr>
               </thead>
               <tbody>
@@ -157,7 +158,9 @@
 
         $("#attack-btn").click(function() {
           $.post("@routes.MainController.startLoadTest", $("#load-config-form").serialize()).success(function(){
-            alert("Posting command!")
+            newBenchmark(@{registeredAgents.size} * parseInt($("#loopCount").val()))
+            //$("#tab-detail").tab("show")
+            $(".nav-tabs a[href='#tab-detail']").tab('show')
           })
         })
       })

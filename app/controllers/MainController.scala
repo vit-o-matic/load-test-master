@@ -68,7 +68,7 @@ class MainController @Inject() (
   def test = Action { implicit request =>
     val clientId = request.session.get("clientId").getOrElse("ID")
     logger.info("TEST.." + clientId)
-    resultBus.publish(SingleHitResult(clientId, "tailrec.io", 200, true, 123, "OK"))
+    resultBus.publish(SingleHitResult(clientId, "123.22.11.11", "tailrec.io", 200, true, 123, "OK"))
     Ok
   }
 
@@ -79,14 +79,7 @@ class MainController @Inject() (
 
   //GET
   def index = Action{ implicit request =>
-    // uncomment this for a quick and dirty test
-//    val registeredAgents: List[AgentDetail] = List(
-//      AgentDetail("127.0.0.1", "some chrome agent", AgentTimeZone("PST", 1)),
-//      AgentDetail("127.2.3.4", "some other chrome agent", AgentTimeZone("CST", 1))
-//    )
-
     val registeredAgents: List[AgentDetail] = DynamoUtils.getAgentDetails(AgentDetail.tableName)
-
     logger.debug(s"found ${registeredAgents.size} registered agent(s)")
     request.session.get("clientId").map { clientId =>
       logger.debug(s"Found client ID: $clientId")
@@ -118,10 +111,9 @@ class MainController @Inject() (
     val json = Json.parse(URLDecoder.decode(encodedData, "UTF-8"))
     val agentDetail: Option[AgentDetail] = agentForm.bind(json).value
     logger.info(s"Agent Detail: ${agentDetail}")
-    //TODO: persist this detail in DB. Dynamo?
 
     val workerActor = system.actorOf(Props(
-      new CommandActorPublisher(commandBus)))
+      new CommandActorPublisher(agentDetail.get, commandBus)))
     val publisher = ActorPublisher[String](workerActor)
     val source = Source.fromPublisher(publisher)
     Flow.fromSinkAndSource(Sink.foreach(println), source)
@@ -154,10 +146,11 @@ class MainController @Inject() (
   }
 
 
-  class CommandActorPublisher(commandBus: CommandEventBus) extends ActorPublisher[String] {
+  class CommandActorPublisher(agentDetail: AgentDetail, commandBus: CommandEventBus) extends ActorPublisher[String] {
 
     val channel = CommandEventBus.DefaultChannel
     commandBus.subscribe(self, channel)
+    DynamoUtils.persistAgentDetail(AgentDetail.tableName, agentDetail)
     logger.debug("Chrome extension has subscribed to command pub/sub")
 
     def receive = {
@@ -166,6 +159,8 @@ class MainController @Inject() (
         onNext(cmd.json)
       case Cancel =>
         commandBus.unsubscribe(self)
+        // delete from dynamo by id
+        DynamoUtils.removeAgent(AgentDetail.tableName, agentDetail.id)
         logger.debug(s"Un-subscribed actor: $self from CommandEventBus of channel: $channel")
     }
   }
