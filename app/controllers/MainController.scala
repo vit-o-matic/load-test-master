@@ -36,8 +36,9 @@ class MainController @Inject() (
   import LoadTest.Implicits._
   import system.dispatcher
 
-  // we need to make sure the table exists, i think this could possibly be done elsewhere
+  // we need to make sure the tables exist, i think this could possibly be done elsewhere
   DynamoUtils.createAgentTableIfNotExists(AgentDetail.tableName)
+  DynamoUtils.createResultTableIfNotExists(SingleHitResult.tableName)
 
   val configForm = Form(
     mapping(
@@ -74,6 +75,7 @@ class MainController @Inject() (
 
   def sqs = Action(BodyParsers.parse.text) { request =>
     logger.info(s"SQS received: ${request.body}")
+    // deserialize the json into a
     Ok
   }
 

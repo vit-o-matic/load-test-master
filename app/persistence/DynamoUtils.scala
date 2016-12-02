@@ -5,7 +5,7 @@ import com.amazonaws.services.dynamodbv2.{AmazonDynamoDB, AmazonDynamoDBClient}
 import com.amazonaws.services.dynamodbv2.document._
 import com.amazonaws.services.dynamodbv2.model._
 import com.amazonaws.services.dynamodbv2.util.TableUtils
-import models.AgentDetail
+import models.{AgentDetail, SingleHitResult}
 import play.api.Logger
 import util.ConfigUtils
 
@@ -18,6 +18,7 @@ import scala.collection.JavaConversions._
   * Created by tomas.mccandless on 12/1/16.
   */
 object DynamoUtils {
+
 
   val logger: Logger = Logger(this.getClass)
 
@@ -52,6 +53,26 @@ object DynamoUtils {
       .withTableName(tableName)
       .withKeySchema(AgentDetail.keys)
       .withAttributeDefinitions(AgentDetail.attributes)
+
+    val table: Table = this.dynamo.getTable(tableName)
+    TableUtils.createTableIfNotExists(this.client, createTable)
+    table.waitForActive()
+  }
+
+
+  /**
+    * Creates a table with `tableName` with the [[SingleHitResult]] schema only if it does not already exist
+    *
+    * @param tableName
+    */
+  // TODO this code can probably be consolidated with the above
+  def createResultTableIfNotExists(tableName: String): Unit = {
+    this.logger.debug(s"attempting to create dynamo table $tableName")
+    val createTable: CreateTableRequest = new CreateTableRequest()
+      .withProvisionedThroughput(this.throughput)
+      .withTableName(tableName)
+      .withKeySchema(SingleHitResult.keys)
+      .withAttributeDefinitions(SingleHitResult.attributes)
 
     val table: Table = this.dynamo.getTable(tableName)
     TableUtils.createTableIfNotExists(this.client, createTable)
@@ -96,5 +117,33 @@ object DynamoUtils {
     this.logger.debug(s"reading AgentDetail items from table $tableName")
     val table: Table = this.dynamo.getTable(tableName)
     (table.scan(new ScanSpec).iterator map { AgentDetail.fromItem }).toList
+  }
+
+
+  /**
+    * Writes the given [[SingleHitResult]] into `tableName`. Assumes that `tableName` already exists and is active.
+    *
+    * @param tableName
+    * @param result
+    */
+  def persistHitResult(tableName: String, result: SingleHitResult): Unit = {
+    this.logger.debug(s"inserting SingleHitResult $result into table $tableName")
+    val item: Item = result.toItem
+    val write: TableWriteItems = new TableWriteItems(tableName).withItemsToPut(item)
+    this.dynamo.batchWriteItem(write)
+  }
+
+
+  /**
+    * Reads all [[SingleHitResult]] from `tableName`.
+    *
+    * @param tableName
+    * @return
+    */
+  // TODO if there are a lot of results we'll only be returned a subset of them and we'll need to paginate
+  def getHitResults(tableName: String): List[SingleHitResult] = {
+    this.logger.debug(s"reading SingleHitResult items from table $tableName")
+    val table: Table = this.dynamo.getTable(tableName)
+    (table.scan(new ScanSpec).iterator map { SingleHitResult.fromItem }).toList
   }
 }
