@@ -52,7 +52,6 @@ class Module(env: Environment, config: Configuration) extends AbstractModule {
     bind(classOf[DynamoDB]).toProvider(classOf[DynamoDBProvider]).asEagerSingleton()
     bind(classOf[CommandEventBus]).asEagerSingleton()
     bind(classOf[ResultEventBus]).asEagerSingleton()
-    bind(classOf[SQSResultPoller]).asEagerSingleton()
   }
 
 }

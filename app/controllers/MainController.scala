@@ -4,12 +4,13 @@ import java.net.URLDecoder
 import java.util.UUID
 import javax.inject.{Inject, Singleton}
 
-import akka.actor.{ActorSystem, Props}
+import akka.actor.{Actor, ActorSystem, PoisonPill, Props}
 import akka.stream.actor.ActorPublisher
 import akka.stream.actor.ActorPublisherMessage.Cancel
 import akka.stream.scaladsl.{Flow, Sink, Source}
 import com.amazonaws.services.dynamodbv2.document.DynamoDB
 import com.amazonaws.services.sqs.AmazonSQS
+import com.amazonaws.services.sqs.model.{GetQueueUrlRequest, ReceiveMessageRequest}
 import models._
 import persistence.DynamoUtils
 import play.api.Logger.logger
@@ -99,7 +100,7 @@ class MainController @Inject() (
 
   //GET
   def subscribeChart(clientId: String) = WebSocket.accept[String,String] { implicit header  =>
-    val workerActor = system.actorOf(Props(new ResultActorPublisher(clientId, resultBus)))
+    val workerActor = system.actorOf(Props(new ResultActorPublisher(clientId, resultBus, sqs)(system)))
     val publisher = ActorPublisher[String](workerActor)
     val source = Source.fromPublisher(publisher)
     Flow.fromSinkAndSource(Sink.foreach(println), source)
@@ -145,42 +146,75 @@ class MainController @Inject() (
     )
   }
 
+}
 
-  class CommandActorPublisher(agentDetail: AgentDetail, commandBus: CommandEventBus) extends ActorPublisher[String] {
+class CommandActorPublisher(agentDetail: AgentDetail, commandBus: CommandEventBus) extends ActorPublisher[String] {
 
-    val channel = CommandEventBus.DefaultChannel
-    commandBus.subscribe(self, channel)
-    DynamoUtils.persistAgentDetail(AgentDetail.tableName, agentDetail)
-    logger.debug("Chrome extension has subscribed to command pub/sub")
+  val channel = CommandEventBus.DefaultChannel
+  commandBus.subscribe(self, channel)
+  DynamoUtils.persistAgentDetail(AgentDetail.tableName, agentDetail)
+  logger.debug("Chrome extension has subscribed to command pub/sub")
 
-    def receive = {
-      case cmd: CommandMessage =>
-        logger.debug(s"Received: ${cmd} from CommandEventBus of channel: $channel")
-        onNext(cmd.json)
-      case Cancel =>
-        commandBus.unsubscribe(self)
-        // delete from dynamo by id
-        DynamoUtils.removeAgent(AgentDetail.tableName, agentDetail.id)
-        logger.debug(s"Un-subscribed actor: $self from CommandEventBus of channel: $channel")
-    }
-  }
-
-  class ResultActorPublisher(clientId: String, resultBus: ResultEventBus) extends ActorPublisher[String] {
-
-    import HitResult.Implicits._
-
-    resultBus.subscribe(self, clientId)
-    logger.info(s"ClientId: ${clientId} has subscribed to result stream pub/sub")
-
-    def receive = {
-      case result: SingleHitResult =>
-        logger.debug(s"Received: ${result} from ResultEventBus of id: $clientId")
-        val json = Json.toJson(result).toString()
-        onNext(json)
-      case Cancel =>
-        commandBus.unsubscribe(self)
-        logger.debug(s"Un-subscribed actor: $self from ResultEventBus of id: $clientId")
-    }
+  def receive = {
+    case cmd: CommandMessage =>
+      logger.debug(s"Received: ${cmd} from CommandEventBus of channel: $channel")
+      onNext(cmd.json)
+    case Cancel =>
+      commandBus.unsubscribe(self)
+      // delete from dynamo by id
+      DynamoUtils.removeAgent(AgentDetail.tableName, agentDetail.id)
+      logger.debug(s"Un-subscribed actor: $self from CommandEventBus of channel: $channel")
   }
 }
 
+class ResultActorPublisher(clientId: String, resultBus: ResultEventBus, sqs: AmazonSQS)(system: ActorSystem) extends ActorPublisher[String] {
+
+  import HitResult.Implicits._
+
+  resultBus.subscribe(self, clientId)
+  logger.info(s"ClientId: ${clientId} has subscribed to result stream pub/sub")
+
+  val pollerActor = system.actorOf(Props(new PollerActor(clientId, resultBus, sqs)))
+  pollerActor ! Poll
+
+  def receive = {
+    case result: SingleHitResult =>
+      logger.debug(s"Received: ${result} from ResultEventBus of id: $clientId")
+      val json = Json.toJson(result).toString()
+      onNext(json)
+    case Cancel =>
+      resultBus.unsubscribe(self)
+      pollerActor ! PoisonPill
+      logger.debug(s"Un-subscribed actor: $self from ResultEventBus of id: $clientId")
+  }
+}
+
+case object Poll
+
+class PollerActor(clientId: String, resultBus: ResultEventBus, sqs: AmazonSQS) extends Actor {
+
+  import scala.collection.JavaConversions._
+  import models.HitResult.Implicits._
+
+  def receive = {
+    case Poll =>
+      readQueue
+      self ! Poll
+  }
+
+  def readQueue(): Seq[SingleHitResult] = {
+    val queueName = s"SingleHitResultQueue_${clientId}"
+    val queueUrl = sqs.getQueueUrl(new GetQueueUrlRequest(queueName)).getQueueUrl
+    logger.debug(s"Reading queue: ${queueUrl}")
+    val msgRequest = new ReceiveMessageRequest(queueUrl)
+    msgRequest.setWaitTimeSeconds(15) //long polling
+    sqs.receiveMessage(msgRequest).getMessages.map{ msg =>
+      val result = Json.parse(msg.getBody).as[SingleHitResult]
+      resultBus.publish(result)
+      logger.debug(s"Received from SQS: ${msg.getBody}")
+      val deleteResult = sqs.deleteMessage(queueUrl, msg.getReceiptHandle)
+      logger.debug(s"SQS delete result: ${deleteResult}")
+      result
+    }
+  }
+}
