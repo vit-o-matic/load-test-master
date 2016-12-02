@@ -75,28 +75,51 @@ class MainController @Inject() (
 
   def sqs = Action(BodyParsers.parse.text) { request =>
     logger.info(s"SQS received: ${request.body}")
-    // deserialize the json into a
+    // deserialize and persist the hit result
+    // TODO don't fake it
+    val hitResult: SingleHitResult = SingleHitResult fromJson request.body
+    DynamoUtils.persistHitResult(SingleHitResult.tableName, hitResult)
     Ok
   }
 
   //GET
   def index = Action{ implicit request =>
-    // uncomment this for a quick and dirty test
+    // uncomment these for a quick and dirty test if the real tables are empty or you need a sanity check
 //    val registeredAgents: List[AgentDetail] = List(
 //      AgentDetail("127.0.0.1", "some chrome agent", AgentTimeZone("PST", 1)),
 //      AgentDetail("127.2.3.4", "some other chrome agent", AgentTimeZone("CST", 1))
 //    )
+//    val hitResults: List[SingleHitResult] = List(
+//      SingleHitResult(
+//        clientId = "a5a80330",
+//        targetUrl = "https://www.google.com",
+//        statusCode = 200,
+//        success = true,
+//        totalTime = 200,
+//        message = "it worked!"
+//      ),
+//
+//      SingleHitResult(
+//        clientId = "cceab9c9831d",
+//        targetUrl = "https://www.google.com",
+//        statusCode = 200,
+//        success = true,
+//        totalTime = 200,
+//        message = "it worked again!"
+//      )
+//    )
 
+    val hitResults: List[SingleHitResult] = DynamoUtils.getHitResults(SingleHitResult.tableName)
     val registeredAgents: List[AgentDetail] = DynamoUtils.getAgentDetails(AgentDetail.tableName)
 
-    logger.debug(s"found ${registeredAgents.size} registered agent(s)")
+    logger.debug(s"found ${registeredAgents.size} registered agent(s) in dynamoDB")
     request.session.get("clientId").map { clientId =>
       logger.debug(s"Found client ID: $clientId")
-      Ok(views.html.main(clientId, registeredAgents))
+      Ok(views.html.main(clientId, registeredAgents, hitResults))
     }.getOrElse {
       val clientId = UUID.randomUUID().toString
       logger.debug(s"Generated new client ID: $clientId")
-      Ok(views.html.main(clientId, registeredAgents)).withSession("clientId" -> clientId)
+      Ok(views.html.main(clientId, registeredAgents, hitResults)).withSession("clientId" -> clientId)
     }
   }
 

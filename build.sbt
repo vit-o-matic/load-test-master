@@ -14,6 +14,7 @@ libraryDependencies ++= Seq(
   "com.amazonaws" % "aws-java-sdk-sqs" % "1.11.62",
   "com.amazonaws" % "aws-java-sdk-dynamodb" % "1.11.62",
   "xml-apis" % "xml-apis" % "1.4.01",
+  "org.json4s" % "json4s-jackson_2.11" % "3.4.2",
   "org.scalatestplus.play" %% "scalatestplus-play" % "1.5.1" % Test
 )
 

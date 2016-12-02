@@ -1,4 +1,4 @@
-@(clientId: String, registeredAgents: List[AgentDetail])(content: Html)
+@(clientId: String, registeredAgents: List[AgentDetail], hitResults: List[SingleHitResult])(content: Html)
 
 <!DOCTYPE html>
 <html lang="en">
@@ -129,6 +129,16 @@
                 </tr>
               </thead>
               <tbody>
+                @for(hitResult <- hitResults) {
+                  <tr>
+                    <td>@hitResult.targetUrl</td>
+                    <td>@hitResult.success</td>
+                    <td>@hitResult.message</td>
+                    <td>@hitResult.totalTime</td>
+                    <td></td>
+                    <td></td>
+                  </tr>
+                }
               </tbody>
             </table>
             <div>

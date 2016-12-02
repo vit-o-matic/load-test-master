@@ -5,6 +5,8 @@ import java.util.UUID
 import com.amazonaws.services.dynamodbv2.document.Item
 import com.amazonaws.services.dynamodbv2.model.{AttributeDefinition, KeySchemaElement, KeyType}
 import play.api.libs.json.Json
+import org.json4s._
+import org.json4s.jackson.JsonMethods._
 
 /**
   * @author Hussachai Puripunpinyo
@@ -66,9 +68,35 @@ object SingleHitResult {
     val statusCode: Int = item.getInt("statusCode")
     val success: Boolean = item.getBoolean("success")
     val totalTime: Long = item.getLong("totalTime")
-    val message: String = item.getString("message")
+    // dynamo complains if an attribute has empty string as its value, so we omit that field
+    // entirely during serialization, now we have to add it back
+    val message: String = Option(item.getString("message")) match {
+      case Some(msg) => msg
+      case None => ""
+    }
 
-    new SingleHitResult(clientId, targetUrl, statusCode, success, totalTime, message)
+   SingleHitResult(clientId, targetUrl, statusCode, success, totalTime, message)
+  }
+
+
+  /**
+    * Deserializes `serialized` into a [[SingleHitResult]].
+    *
+    * @param serialized json form of a [[SingleHitResult]].
+    * @return a [[SingleHitResult]] obtained by deserializing `serialized`.
+    */
+  // TODO could be nicer, kind of cluttered, maybe use play json libs?
+  def fromJson(serialized: String): SingleHitResult = {
+    val json: JValue = parse(serialized)
+
+    val clientId: String = ((json \ "clientId").toOption map { _.values.toString }).get
+    val targetUrl: String = ((json \ "targetUrl").toOption map { _.values.toString }).get
+    val statusCode: Int = ((json \ "statusCode").toOption map { _.values.toString.toInt }).get
+    val success: Boolean = ((json \ "success").toOption map { _.values.toString.toBoolean }).get
+    val totalTime: Long = ((json \ "totalTime").toOption map { _.values.toString.toLong }).get
+    val message: String = ((json \ "message").toOption map { _.values.toString }).get
+
+    SingleHitResult(clientId, targetUrl, statusCode, success, totalTime, message)
   }
 }
 

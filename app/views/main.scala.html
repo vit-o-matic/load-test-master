@@ -1,6 +1,6 @@
-@(clientId: String, registeredAgents: List[AgentDetail])(implicit request: RequestHeader)
+@(clientId: String, registeredAgents: List[AgentDetail], hitResults: List[SingleHitResult])(implicit request: RequestHeader)
 
-@template(clientId, registeredAgents) {
+@template(clientId, registeredAgents, hitResults) {
 
   <script type="text/javascript" charset="utf-8" src="@routes.MainController.resultPushJs(clientId)"></script>
   
