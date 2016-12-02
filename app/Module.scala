@@ -46,11 +46,13 @@ class Module(env: Environment, config: Configuration) extends AbstractModule {
     bind(classOf[Region]).toInstance{
       Region.getRegion(Regions.valueOf(config.getString("aws.region").get))
     }
+
     bind(classOf[AmazonSNS]).toProvider(classOf[AmazonSNSProvider]).asEagerSingleton()
     bind(classOf[AmazonSQS]).toProvider(classOf[AmazonSQSProvider]).asEagerSingleton()
     bind(classOf[DynamoDB]).toProvider(classOf[DynamoDBProvider]).asEagerSingleton()
-    bind(classOf[CommandEventBus]).toInstance(new CommandEventBus())
-    bind(classOf[ResultEventBus]).toInstance(new ResultEventBus())
+    bind(classOf[CommandEventBus]).asEagerSingleton()
+    bind(classOf[ResultEventBus]).asEagerSingleton()
+    bind(classOf[SQSResultPoller]).asEagerSingleton()
   }
 
 }
