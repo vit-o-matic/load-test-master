@@ -30,9 +30,11 @@ case class AgentDetail (
       .`with`("id", this.id)
       .`with`("address", this.address)
       .`with`("userAgent", this.userAgent)
-      .`with`("timezone", this.timezone.toString)
+      .`with`("timezoneName", this.timezone.name)
+      .`with`("timezoneOffset", this.timezone.offset)
   }
 }
+
 
 // holds the schema keys and attributes for agent detail
 object AgentDetail {
@@ -41,12 +43,27 @@ object AgentDetail {
 
   val id: AttributeDefinition = new AttributeDefinition("id", "S")
   val address: AttributeDefinition = new AttributeDefinition("address", "S")
-//  val userAgent: AttributeDefinition = new AttributeDefinition("userAgent", "S")
-//  val timezone: AttributeDefinition = new AttributeDefinition("timezone", "S")
 
   val keys: List[KeySchemaElement] = List(this.idKey, this.addressKey)
   val attributes: List[AttributeDefinition] = List(this.id, this.address)
+
+  /**
+    * Reconstructs an [[AgentDetail]] from an [[Item]] retrieved from DynamoDB.
+    *
+    * @param item
+    * @return
+    */
+  def fromItem(item: Item): AgentDetail = {
+    // TODO we might want to include id in the agentdetail constructor -- not sure
+    // val id: String = item.getString("id")
+    val address: String = item.getString("address")
+    val userAgent: String = item.getString("userAgent")
+    val timezoneName: String = item.getString("timezoneName")
+    val timezoneOffset: Int = item.getInt("timezoneOffset")
+    new AgentDetail(address, userAgent, new AgentTimeZone(timezoneName, timezoneOffset))
+  }
 }
+
 
 case class AgentTimeZone (
   name: String, //Intl.DateTimeFormat().resolvedOptions().timeZone

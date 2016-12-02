@@ -1,14 +1,15 @@
 package persistence
 
+import com.amazonaws.services.dynamodbv2.document.spec.ScanSpec
 import com.amazonaws.services.dynamodbv2.{AmazonDynamoDB, AmazonDynamoDBClient}
-import com.amazonaws.services.dynamodbv2.document.{DynamoDB, Item, Table}
+import com.amazonaws.services.dynamodbv2.document._
 import com.amazonaws.services.dynamodbv2.model._
 import com.amazonaws.services.dynamodbv2.util.TableUtils
 import models.AgentDetail
 import play.api.Logger
 import util.ConfigUtils
 
-import scala.collection.JavaConversions.seqAsJavaList
+import scala.collection.JavaConversions._
 /**
   * Created by tomas.mccandless on 12/1/16.
   */
@@ -53,14 +54,28 @@ object DynamoUtils {
   }
 
 
-  def persistAgentDetail(detail: AgentDetail): Unit = {
+  /**
+    * Writes the given [[AgentDetail]] into `tableName`. Assumes that `tableName` already exists and is active.
+    *
+    * @param tableName
+    * @param detail
+    */
+  def persistAgentDetail(tableName: String, detail: AgentDetail): Unit = {
     val item: Item = detail.toItem
-    // TODO persist the item
+    val write: TableWriteItems = new TableWriteItems(tableName).withItemsToPut(item)
+    this.dynamo.batchWriteItem(write)
   }
 
 
-  def getAgentDetails(): List[AgentDetail] = {
-    // TODO read back from the table
-    List.empty
+  /**
+    * Reads all [[AgentDetail]] from `tableName`.
+    *
+    * @param tableName
+    * @return
+    */
+  // TODO if there are a lot of agents we'll only be returned a subset of them and we'll need to paginate
+  def getAgentDetails(tableName: String): List[AgentDetail] = {
+    val table: Table = this.dynamo.getTable(tableName)
+    (table.scan(new ScanSpec).iterator map { AgentDetail.fromItem }).toList
   }
 }
