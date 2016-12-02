@@ -5,9 +5,12 @@ package models
   */
 case class SingleHitResult (
   id: String, // this id must match with LoadTest.id
+  targetAddress: String,
+  statusCode: Int,
   success: Boolean,
   totalTime: Long, // round trip time
-  processingTime: Long //processing time
+  processingTime: Long, //processing time
+  message: String
 )
 
 /**

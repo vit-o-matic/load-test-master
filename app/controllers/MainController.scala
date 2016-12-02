@@ -1,6 +1,7 @@
 package controllers
 
 import java.net.URLDecoder
+import java.util.UUID
 import javax.inject.{Inject, Singleton}
 
 import akka.actor.{ActorSystem, Props}
@@ -15,7 +16,6 @@ import play.api.data.Form
 import play.api.data.Forms._
 import play.api.mvc._
 import services.{CommandEventBus, ResultEventBus}
-
 import scala.concurrent.Future
 import play.api.libs.json._
 import services.CommandEventBus.CommandMessage
@@ -34,8 +34,8 @@ class MainController @Inject() (
   import LoadTest.Implicits._
   import system.dispatcher
 
-  val logger = Logger(getClass)
-
+  val logger = Logger.logger
+  logger.debug("WHAT IS GOING ON")
   val configForm = Form(
     mapping(
       "numNodes" -> number,
@@ -61,8 +61,33 @@ class MainController @Inject() (
     )(AgentDetail.apply)(AgentDetail.unapply)
   )
 
+  // POST this one is for testing result data stream on WebSocket
+  def test = Action { implicit request =>
+    logger.info("TEST..")
+    resultBus.publish(SingleHitResult("ID", "tailrec.io", 200, true, 123, 12, "OK"))
+    Ok
+  }
 
-  //GET Only
+  //GET
+  def index = Action{ implicit request =>
+    Ok(views.html.main("THIS IS GOING TO BE DELETED"))
+  }
+
+  //GET
+  def resultPushJs(clientId: String) = Action { implicit request =>
+    val endpoint = routes.MainController.subscribeChart(clientId).webSocketURL()
+    Ok(views.js.result_push(clientId, endpoint))
+  }
+
+  //GET
+  def subscribeChart(clientId: String) = WebSocket.accept[String,String] { implicit header  =>
+    val workerActor = system.actorOf(Props(new ResultActorPublisher(clientId, resultBus)))
+    val publisher = ActorPublisher[String](workerActor)
+    val source = Source.fromPublisher(publisher)
+    Flow.fromSinkAndSource(Sink.foreach(println), source)
+  }
+
+  //GET
   def subscribeAgent(encodedData: String) = WebSocket.accept[String,String] { implicit header  =>
 
     val json = Json.parse(URLDecoder.decode(encodedData, "UTF-8"))
@@ -85,7 +110,7 @@ class MainController @Inject() (
       loadTest => {
         Future {
           /**
-            * We can publish to subset of agents but it needs two steps.
+            * We can publish to subset of agents but it needs many steps.
             *  1. Broadcast to all available agents
             *  2. Put agents that reply back into the same channel (keep track of the number of subscribers as well)
             *  3. Notify agents that they're registered in the channel.
@@ -107,6 +132,7 @@ class MainController @Inject() (
 
     val channel = CommandEventBus.DefaultChannel
     commandBus.subscribe(self, channel)
+    logger.debug("Chrome extension has subscribed to command pub/sub")
 
     def receive = {
       case cmd: CommandMessage =>
@@ -118,18 +144,19 @@ class MainController @Inject() (
     }
   }
 
-  class ResultActorPublisher(id: String, resultBus: ResultEventBus) extends ActorPublisher[String] {
+  class ResultActorPublisher(clientId: String, resultBus: ResultEventBus) extends ActorPublisher[String] {
 
-    resultBus.subscribe(self, id)
+    resultBus.subscribe(self, clientId)
+    logger.info(s"ClientId: ${clientId} has subscribed to result stream pub/sub")
 
     def receive = {
       case result: SingleHitResult =>
-        logger.debug(s"Received: ${result} from ResultEventBus of id: $id")
+        logger.debug(s"Received: ${result} from ResultEventBus of id: $clientId")
         val json = result.toString //TODO: toJson here
         onNext(json)
       case Cancel =>
         commandBus.unsubscribe(self)
-        logger.debug(s"Un-subscribed actor: $self from ResultEventBus of id: $id")
+        logger.debug(s"Un-subscribed actor: $self from ResultEventBus of id: $clientId")
     }
   }
 }
