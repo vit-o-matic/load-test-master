@@ -10,6 +10,7 @@ import play.api.Logger
 import util.ConfigUtils
 
 import scala.collection.JavaConversions._
+
 /**
   * Created by tomas.mccandless on 12/1/16.
   */
@@ -30,6 +31,7 @@ object DynamoUtils {
     * @param tableName
     */
   def deleteTableIfExists(tableName: String): Unit = {
+    this.logger.debug(s"attempting to delete dynamo table $tableName")
     val table: Table = this.dynamo.getTable(tableName)
     TableUtils.deleteTableIfExists(this.client, new DeleteTableRequest(tableName))
     table.waitForDelete()
@@ -42,6 +44,7 @@ object DynamoUtils {
     * @param tableName
     */
   def createAgentTableIfNotExists(tableName: String): Unit = {
+    this.logger.debug(s"attempting to create dynamo table $tableName")
     val createTable: CreateTableRequest = new CreateTableRequest()
       .withProvisionedThroughput(this.throughput)
       .withTableName(tableName)
@@ -61,10 +64,15 @@ object DynamoUtils {
     * @param detail
     */
   def persistAgentDetail(tableName: String, detail: AgentDetail): Unit = {
+    this.logger.debug(s"inserting AgentDetail $detail into table $tableName")
     val item: Item = detail.toItem
     val write: TableWriteItems = new TableWriteItems(tableName).withItemsToPut(item)
     this.dynamo.batchWriteItem(write)
   }
+
+
+  // TODO we don't yet support de-registering an agent
+  def removeAgent(tableName: String, id: String): Unit = ???
 
 
   /**
@@ -75,6 +83,7 @@ object DynamoUtils {
     */
   // TODO if there are a lot of agents we'll only be returned a subset of them and we'll need to paginate
   def getAgentDetails(tableName: String): List[AgentDetail] = {
+    this.logger.debug(s"reading AgentDetail items from table $tableName")
     val table: Table = this.dynamo.getTable(tableName)
     (table.scan(new ScanSpec).iterator map { AgentDetail.fromItem }).toList
   }

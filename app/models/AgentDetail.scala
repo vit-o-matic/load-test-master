@@ -38,6 +38,12 @@ case class AgentDetail (
 
 // holds the schema keys and attributes for agent detail
 object AgentDetail {
+  // for production, we'll use this table name to store registered agents.
+  // for testing, we use a random uuid as the table name -- see PersistenceSpec
+  val tableName: String = "AgentDetail"
+
+  // keys we are using, must be the same number of keys as attributes below, but we can add other fields later that are
+  // not indexed
   val idKey: KeySchemaElement = new KeySchemaElement("id", KeyType.HASH)
   val addressKey: KeySchemaElement = new KeySchemaElement("address", KeyType.RANGE)
 
