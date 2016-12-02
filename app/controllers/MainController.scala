@@ -10,7 +10,7 @@ import akka.stream.actor.ActorPublisherMessage.Cancel
 import akka.stream.scaladsl.{Flow, Sink, Source}
 import com.amazonaws.services.dynamodbv2.document.DynamoDB
 import com.amazonaws.services.sqs.AmazonSQS
-import com.amazonaws.services.sqs.model.{GetQueueUrlRequest, ReceiveMessageRequest}
+import com.amazonaws.services.sqs.model.{CreateQueueRequest, GetQueueUrlRequest, ReceiveMessageRequest}
 import models._
 import persistence.DynamoUtils
 import play.api.Logger.logger
@@ -22,6 +22,8 @@ import services.{CommandEventBus, ResultEventBus}
 import scala.concurrent.Future
 import play.api.libs.json._
 import services.CommandEventBus.CommandMessage
+
+import scala.util.Try
 
 /**
   * @author Hussachai Puripunpinyo
@@ -204,6 +206,8 @@ class PollerActor(clientId: String, resultBus: ResultEventBus, sqs: AmazonSQS) e
 
   def readQueue(): Seq[SingleHitResult] = {
     val queueName = s"SingleHitResultQueue_${clientId}"
+    Try(sqs.createQueue(new CreateQueueRequest(queueName)))
+
     val queueUrl = sqs.getQueueUrl(new GetQueueUrlRequest(queueName)).getQueueUrl
     logger.debug(s"Reading queue: ${queueUrl}")
     val msgRequest = new ReceiveMessageRequest(queueUrl)
