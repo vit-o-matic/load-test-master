@@ -64,12 +64,6 @@ function addBenchmarkResult(msg) {
   }
 }
 
-var clientId = localStorage.getItem("clientId")
-if(!clientId) {
-    clientId = Math.random().toString(36).substring(2)
-    localStorage.setItem("clientId", clientId)
-}
-console.log(clientId)
 var WS = window["MozWebSocket"] ? MozWebSocket : WebSocket
 var chartSocket = new WS("@chartEndpoint")
 chartSocket.onmessage = function(e) {

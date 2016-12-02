@@ -63,14 +63,22 @@ class MainController @Inject() (
 
   // POST this one is for testing result data stream on WebSocket
   def test = Action { implicit request =>
-    logger.info("TEST..")
-    resultBus.publish(SingleHitResult("ID", "tailrec.io", 200, true, 123, 12, "OK"))
+    val clientId = request.session.get("clientId").getOrElse("ID")
+    logger.info("TEST.." + clientId)
+    resultBus.publish(SingleHitResult(clientId, "tailrec.io", 200, true, 123, 12, "OK"))
     Ok
   }
 
   //GET
   def index = Action{ implicit request =>
-    Ok(views.html.main("THIS IS GOING TO BE DELETED"))
+    request.session.get("clientId").map { clientId =>
+      logger.debug(s"Found client ID: ${clientId}")
+      Ok(views.html.main(clientId))
+    }.getOrElse {
+      val clientId = UUID.randomUUID().toString
+      logger.debug(s"Generated new clienet ID: ${clientId}")
+      Ok(views.html.main(clientId)).withSession("clientId" -> clientId)
+    }
   }
 
   //GET
@@ -146,13 +154,15 @@ class MainController @Inject() (
 
   class ResultActorPublisher(clientId: String, resultBus: ResultEventBus) extends ActorPublisher[String] {
 
+    import HitResult.Implicits._
+    
     resultBus.subscribe(self, clientId)
     logger.info(s"ClientId: ${clientId} has subscribed to result stream pub/sub")
 
     def receive = {
       case result: SingleHitResult =>
         logger.debug(s"Received: ${result} from ResultEventBus of id: $clientId")
-        val json = result.toString //TODO: toJson here
+        val json = Json.toJson(result).toString()
         onNext(json)
       case Cancel =>
         commandBus.unsubscribe(self)
