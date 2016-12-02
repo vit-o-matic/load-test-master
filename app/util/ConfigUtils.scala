@@ -18,6 +18,7 @@ object ConfigUtils {
     */
   def awsCredentials: BasicAWSCredentials = {
     new BasicAWSCredentials(
+      // TODO these string literals are duplicated in a few places -- see Module
       this._config.getString("aws.accessKeyId"),
       this._config.getString("aws.secretAccessKey")
     )

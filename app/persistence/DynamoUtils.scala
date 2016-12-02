@@ -1,8 +1,9 @@
 package persistence
 
-import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClient
+import com.amazonaws.services.dynamodbv2.{AmazonDynamoDB, AmazonDynamoDBClient}
 import com.amazonaws.services.dynamodbv2.document.{DynamoDB, Item, Table}
 import com.amazonaws.services.dynamodbv2.model._
+import com.amazonaws.services.dynamodbv2.util.TableUtils
 import models.AgentDetail
 import play.api.Logger
 import util.ConfigUtils
@@ -18,29 +19,36 @@ object DynamoUtils {
   // provisioned throughput: read capacity and write capacity
   val throughput: ProvisionedThroughput = new ProvisionedThroughput(10L, 10L)
 
-  val dynamo: DynamoDB = new DynamoDB(new AmazonDynamoDBClient(ConfigUtils.awsCredentials))
+
+  val client: AmazonDynamoDB = new AmazonDynamoDBClient(ConfigUtils.awsCredentials)
+  val dynamo: DynamoDB = new DynamoDB(this.client)
 
   /**
-    * Deletes the specified table from dynamo.
+    * Deletes the specified table from dynamo if it exists.
     *
     * @param tableName
     */
-  def deleteTable(tableName: String): Unit = {
+  def deleteTableIfExists(tableName: String): Unit = {
     val table: Table = this.dynamo.getTable(tableName)
-    table.delete()
+    TableUtils.deleteTableIfExists(this.client, new DeleteTableRequest(tableName))
     table.waitForDelete()
   }
 
 
-  // TODO seems like its a good idea to have a default table name that just uses tests
-  def createAgentDetailTable(tableName: String): Unit = {
+  /**
+    * Creates a table with `tableName` with the agent schema only if it does not already exist.
+    *
+    * @param tableName
+    */
+  def createAgentTableIfNotExists(tableName: String): Unit = {
     val createTable: CreateTableRequest = new CreateTableRequest()
       .withProvisionedThroughput(this.throughput)
       .withTableName(tableName)
       .withKeySchema(AgentDetail.keys)
       .withAttributeDefinitions(AgentDetail.attributes)
 
-    val table: Table = this.dynamo.createTable(createTable)
+    val table: Table = this.dynamo.getTable(tableName)
+    TableUtils.createTableIfNotExists(this.client, createTable)
     table.waitForActive()
   }
 
@@ -52,6 +60,7 @@ object DynamoUtils {
 
 
   def getAgentDetails(): List[AgentDetail] = {
+    // TODO read back from the table
     List.empty
   }
 }

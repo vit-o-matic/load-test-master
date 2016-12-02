@@ -13,7 +13,23 @@ class PersistenceSpec extends JUnitSuite with Matchers {
   def persistAgentDetails(): Unit = {
     val detail: AgentDetail = AgentDetail("127.0.0.1", "some chrome agent", AgentTimeZone("PST", 1))
 
-    DynamoUtils.createAgentDetailTable("someTable")
-    DynamoUtils.deleteTable("someTable")
+    DynamoUtils.createAgentTableIfNotExists("someTable")
+    DynamoUtils.deleteTableIfExists("someTable")
+  }
+
+
+  /** Checks that an attempt to create an existing table does not fail. */
+  @Test
+  def createIfNotExists(): Unit = {
+    DynamoUtils.createAgentTableIfNotExists("someTable")
+    DynamoUtils.createAgentTableIfNotExists("someTable")
+  }
+
+
+  /** Checks that an attempt to delete a non-existing table does not fail. */
+  @Test
+  def deleteIfNotExists(): Unit = {
+    DynamoUtils.deleteTableIfExists("someTable")
+    DynamoUtils.deleteTableIfExists("someTable")
   }
 }
