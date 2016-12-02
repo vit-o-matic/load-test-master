@@ -11,11 +11,13 @@ import akka.stream.scaladsl.{Flow, Sink, Source}
 import com.amazonaws.services.dynamodbv2.document.DynamoDB
 import com.amazonaws.services.sqs.AmazonSQS
 import models._
-import play.api.Logger
+import persistence.DynamoUtils
+import play.api.Logger.logger
 import play.api.data.Form
 import play.api.data.Forms._
 import play.api.mvc._
 import services.{CommandEventBus, ResultEventBus}
+
 import scala.concurrent.Future
 import play.api.libs.json._
 import services.CommandEventBus.CommandMessage
@@ -34,7 +36,8 @@ class MainController @Inject() (
   import LoadTest.Implicits._
   import system.dispatcher
 
-  val logger = Logger.logger
+  // we need to make sure the table exists, i think this could possibly be done elsewhere
+  DynamoUtils.createAgentTableIfNotExists(AgentDetail.tableName)
 
   val configForm = Form(
     mapping(
@@ -76,13 +79,22 @@ class MainController @Inject() (
 
   //GET
   def index = Action{ implicit request =>
+    // uncomment this for a quick and dirty test
+//    val registeredAgents: List[AgentDetail] = List(
+//      AgentDetail("127.0.0.1", "some chrome agent", AgentTimeZone("PST", 1)),
+//      AgentDetail("127.2.3.4", "some other chrome agent", AgentTimeZone("CST", 1))
+//    )
+
+    val registeredAgents: List[AgentDetail] = DynamoUtils.getAgentDetails(AgentDetail.tableName)
+
+    logger.debug(s"found ${registeredAgents.size} registered agent(s)")
     request.session.get("clientId").map { clientId =>
-      logger.debug(s"Found client ID: ${clientId}")
-      Ok(views.html.main(clientId))
+      logger.debug(s"Found client ID: $clientId")
+      Ok(views.html.main(clientId, registeredAgents))
     }.getOrElse {
       val clientId = UUID.randomUUID().toString
-      logger.debug(s"Generated new clienet ID: ${clientId}")
-      Ok(views.html.main(clientId)).withSession("clientId" -> clientId)
+      logger.debug(s"Generated new client ID: $clientId")
+      Ok(views.html.main(clientId, registeredAgents)).withSession("clientId" -> clientId)
     }
   }
 
